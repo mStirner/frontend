@@ -44,7 +44,6 @@ export default defineComponent({
     closeEdit() {
 
       this.showTitleTextbox = false;
-      this.counter = 0;
       this.save();
 
     },
@@ -68,15 +67,34 @@ export default defineComponent({
     startCounter() {
 
       this.closeEdit();
-      this.resetCounter();
 
       this.interval = setInterval(() => {
-          this.counter += 1;
-      }, 1000);
+        this.counter += 10;
+      }, 10);
 
     },
     stopCounter() {
       clearInterval(this.interval);
+      this.resetCounter();
+      this.interval = null;
+    },
+    pauseCounter() {
+      clearInterval(this.interval);
+      this.interval = null;
+    }
+  },
+  computed: {
+    time() {
+
+      const ms = this.counter;
+
+      const hours = Math.floor(ms / 3600000);
+      const minutes = Math.floor((ms % 3600000) / 60000);
+      const seconds = Math.floor((ms % 60000) / 1000);
+      const milliseconds = Math.floor((ms % 1000) / 10);;
+
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
+
     }
   },
   menu: [{
@@ -102,13 +120,14 @@ export default defineComponent({
       <div class="container text-center">
         <div class="row">
           <div class="col h-100">
-            <button class="btn btn-outline-primary btn-block" @click="startCounter()">Start</button>
+            <button class="btn btn-outline-primary btn-block" @click="pauseCounter()" v-if="interval">Pause</button>
+            <button class="btn btn-outline-primary btn-block" @click="startCounter()" v-if="!interval">Start</button>
           </div>
           <div class="col">
             <div class="container">
 
               <div class="row" v-if="!showDurationTextbox">
-                <h3>{{ counter }}</h3>
+                <h3>{{ time }}</h3>
               </div>
 
             </div>
