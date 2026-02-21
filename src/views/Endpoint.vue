@@ -13,6 +13,9 @@ import dateformat from "dateformat";
 import { reactive, watch } from "vue";
 import { mapActions } from "pinia";
 import { itemStore, settingsStore } from "../store.js";
+import GridDraggable from "../components/GridDraggable.vue";
+import Grid from "../components/GridDraggable.vue";
+import PageLayouts from "../components/PageLayouts.vue";
 const store = itemStore();
 const settings = settingsStore();
 
@@ -20,7 +23,9 @@ export default {
   components: {
     Tile,
     RouterLink,
-    CommandParameter
+    CommandParameter,
+    GridDraggable,
+    Grid
   },
   data() {
     return {
@@ -115,7 +120,7 @@ export default {
     },
     resetAnimation(index) {
       this.animations[index] = false;
-    }
+    },
   },
   computed: {
     commands() {
@@ -135,9 +140,9 @@ export default {
 </script>
 
 <template>
-  <div v-if="data?.pages?.length > 0 && settings.useRemoteLayoutPages">
+  <div v-if="data?.pages?.length > 0 && settings.useRemoteLayoutPages" class="h-100">
 
-    {{ data.pages }}
+    <PageLayouts :endpoint="data" @trigger="trigger" />
 
   </div>
   <div v-else class="container-fluid">
