@@ -1,5 +1,6 @@
 <script>
 import { defineComponent } from "vue";
+import { settingsStore } from "../store";
 
 import { useNotificationStore } from "@dafcoe/vue-notification";
 const { setNotification } = useNotificationStore();
@@ -11,6 +12,15 @@ export default defineComponent({
       type: String,
       required: true,
     },
+  },
+  setup() {
+
+    const settings = settingsStore();
+
+    return {
+      settings
+    };
+
   },
   data() {
     return {
@@ -47,6 +57,7 @@ export default defineComponent({
     closeEdit() {
 
       if (!(new RegExp(/^\d+$/).test(this.duration))) {
+
         setNotification({
           message: `Invalid duration. Only numbers/integers are supported. No float numbers or other charachter!`,
           type: "alert",
@@ -90,6 +101,9 @@ export default defineComponent({
       this.interval = setInterval(() => {
         if (this.counter <= 0) {
 
+          this.counter = 0;
+          clearInterval(this.interval);
+
           // NOTE: triger backend notification here?
           // if on mobile, its possible that no execution is paused
           // interatre a backend task to solve this?
@@ -100,9 +114,12 @@ export default defineComponent({
           // - coundown "foo" reached 0!
           // - Your time is up!
           // - etc.
+          if ('vibrate' in navigator) {
+            navigator.vibrate(200);
+          }
 
           setNotification({
-            message: `Countdown "${this.title}" reached 0!`,
+            message: `Countdown ${this.title ? `"${this.title}"` : ''} reached 0!`,
             type: "info",
             showIcon: false,
             dismiss: {
@@ -112,10 +129,19 @@ export default defineComponent({
             appearance: "dark",
           });
 
-          //alert("Countdown reached 0!");
+          /*
+          if (window?.notifications && this.settings.sendSystemNotifications) {
 
-          clearInterval(this.interval);
-          this.counter = 0;
+            let msg = JSON.stringify({
+              title: "<b>Countdown</b>",
+              message: `${this.title ? `"${this.title}"` : 'Countdown'} reached 0!`
+            });
+
+            window.notifications.send(msg);
+
+          }
+          */
+
 
         } else {
 
@@ -185,7 +211,7 @@ export default defineComponent({
                 </div>
                 <div class="col">
                   <button class="btn btn-outline-primary btn-block" @click="decrase()">-</button>
-                </div>
+                </div>>
               </div>
 
             </div>

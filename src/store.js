@@ -52,7 +52,10 @@ export const settingsStore = defineStore("settings", {
             startpage: "/dashboard",
             showUpdateTimestampInStates: true,
             enableAnimationOnStateUpdate: true,
-            dateformat: "yyyy.mm.dd - HH:MM:ss"
+            dateformat: "yyyy.mm.dd - HH:MM:ss",
+            showWidgetTitleBar: true,
+            showNotifications: true,
+            sendSystemNotifications: false
         }
     },
     persistent: true
@@ -214,25 +217,12 @@ export const widgetStore = defineStore("widgets", {
     actions: {
         add(widget, options) {
 
-            let i = ((start) => {
-                this.$state.every((a) => {
-                    if (start === a) {
-                        start = a + 1;
-                        return true;
-                    }
-                });
-                return start;
-            })(this.$state.length + 1);
-
             let obj = Object.assign({
-                x: 0,
-                y: 0,
-                z: 0,
-                w: 4,
-                h: 4,
-                i,
+                x: 1,
+                y: 1,
+                w: 2,
+                h: 2,
                 widget,
-                moved: false,
                 uuid: uuid()
             }, options);
 
