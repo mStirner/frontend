@@ -17,6 +17,8 @@ import Countdown from "../widgets/Countdown.vue";
 import Stopwatch from "../widgets/Stopwatch.vue";
 import States from "../widgets/States.vue";
 import Scenes from "../widgets/Scenes.vue";
+//import Commands from "../widgets/Commands.vue";
+//import WebView from "../widgets/WebView.vue";
 
 const components = {
   //Weather,
@@ -33,7 +35,9 @@ const components = {
   Countdown,
   Stopwatch,
   States,
-  Scenes
+  Scenes,
+  //Commands,
+  //WebView
 };
 
 // make demo Widget only available when we are on spefici domain
