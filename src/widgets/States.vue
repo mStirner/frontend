@@ -125,8 +125,12 @@ export default defineComponent({
     },
     endpointStats() {
       return this.endpoints.reduce((acc, item) => {
-        acc[item._id] = this.item.states;
+
+        // acc[item._id] = this.item.states; // 
+        acc[item._id] = item?.states || []; // 
+
         return acc;
+
       }, {});
     }
   },
