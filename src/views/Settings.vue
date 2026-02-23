@@ -1,13 +1,12 @@
 <script>
 import { defineComponent } from "vue";
 import { toggleFullscreen, request } from "../helper.js";
-import { useNotificationStore } from "@dafcoe/vue-notification";
 import { version } from "../../package.json";
 import Widget from "../components/Widget.vue";
 import router, { routes } from "../router/index.js";
 import { settingsStore, widgetStore, commonStore, userStore } from "../store.js";
 
-const { setNotification } = useNotificationStore();
+import { addNotification } from "../components/Notifications.vue";
 
 export default defineComponent({
   setup() {
@@ -39,10 +38,24 @@ export default defineComponent({
         "dd.mm.yyyy - HH:MM:ss",
         "dd.mm.yyyy - HH:MM:ss.l"
       ],
+      showInstallButton: false,
     };
   },
   mounted() {
-    console.log("Mounted, watch settings");
+
+    this.showInstallButton = !!window.deferredPrompt;
+
+    window.addEventListener('appinstalled', () => {
+
+      this.showInstallButton = false;
+
+      addNotification("<b>OpenHaus as PWA installed</b>", {
+        type: "primary",
+        dismiss: false
+      });
+
+
+    });
 
     // save changes that are made
     /*
@@ -51,7 +64,7 @@ export default defineComponent({
       if (!this.settings.groupItems) {
         this.settings.groupRoomItems = false;
         this.settings.groupEndpointItems = false;
-        this.settings.groupDeviceItems = false;
+        this.settings.groupDeviceItems = false;installApp
       }
 
       if (this.settings.showGradientBackground) {
@@ -75,7 +88,7 @@ export default defineComponent({
       /*
       nextTick(() => {
         if (this.settings.showSettingsButton) {
-          setNotification({
+          addNotification({
             message:
               "Tap 10x times on any empty space to go to this page again when the settings button is hidden.",
             type: "info",
@@ -120,16 +133,11 @@ export default defineComponent({
 
       this.widgets.add(widget);
 
-      setNotification({
-        message: `Widget "${widget}" added to Dashboard`,
-        type: "success",
-        showIcon: false,
-        dismiss: {
-          manually: true,
-          automatically: true,
-        },
-        appearance: "dark",
+      addNotification(`Widget "${widget}" added to Dashboard`, {
+        type: "primary",
+        dismiss: 3000
       });
+
     },
     async clearSettings() {
       // works, but not for widgets
@@ -146,15 +154,9 @@ export default defineComponent({
       window.localStorage.clear();
       window.sessionStorage.clear();
 
-      setNotification({
-        message: "Local storage has been cleaned",
-        type: "success",
-        showIcon: false,
-        dismiss: {
-          manually: true,
-          automatically: true,
-        },
-        appearance: "dark",
+      addNotification("Local storage has been cleaned", {
+        type: "primary",
+        dismiss: 3000
       });
 
       this.user.logout();
@@ -164,6 +166,7 @@ export default defineComponent({
           path: "/auth/login",
         });
       }, 3000);
+
     },
     exportSettings() {
 
@@ -180,15 +183,9 @@ export default defineComponent({
       link.click();
       link.remove();
 
-      setNotification({
-        message: `Settings have been downloaded as "settings.json"`,
-        type: "success",
-        showIcon: false,
-        dismiss: {
-          manually: true,
-          automatically: true,
-        },
-        appearance: "dark",
+      addNotification(`Settings have been downloaded as "settings.json"`, {
+        type: "primary",
+        dismiss: 3000
       });
 
     },
@@ -212,16 +209,11 @@ export default defineComponent({
         Object.assign(this.settings.$state, JSON.parse(data.settings));
         Object.assign(this.widgets.$state, JSON.parse(data.widgets));
 
-        setNotification({
-          message: "Settings have been restored.",
-          type: "success",
-          showIcon: false,
-          dismiss: {
-            manually: true,
-            automatically: true,
-          },
-          appearance: "dark",
+        addNotification("Settings have been restored.", {
+          type: "primary",
+          dismiss: 3000
         });
+
       });
 
       input.setAttribute("type", "file");
@@ -237,15 +229,9 @@ export default defineComponent({
 
       if (await this.user.logout()) {
 
-        setNotification({
-          message: "You haven been logged out",
-          type: "success",
-          showIcon: false,
-          dismiss: {
-            manually: true,
-            automatically: true,
-          },
-          appearance: "dark",
+        addNotification("You haven been logged out", {
+          type: "primary",
+          dismiss: 3000
         });
 
         setTimeout(() => {
@@ -260,15 +246,9 @@ export default defineComponent({
 
       } else {
 
-        setNotification({
-          message: "Could not logout!",
+        addNotification("Could not logout!", {
           type: "danger",
-          showIcon: false,
-          dismiss: {
-            manually: true,
-            automatically: true,
-          },
-          appearance: "dark",
+          dismiss: false
         });
 
       }
@@ -289,9 +269,50 @@ export default defineComponent({
 
             this.settings.permissionsNotifications = granted === "granted";
 
+            console.log("Show nativ Notification", this.settings.permissionsNotifications)
+
+            let obj = {
+              message: "This is a Test",
+              type: "primary",
+              dismiss: false
+            };
+
+            addNotification(obj.message, obj);
+
             if (this.settings.permissionsNotifications) {
-              new Notification("Hi there!");
+
+              let notification = new Notification("OpenHaus", {
+                body: obj.message,
+                icon: "/favicon.png",
+                requireInteraction: false,
+                silent: false
+              });
+
+              notification.addEventListener("show", () => {
+                console.log("✅ Notification shown");
+              });
+
+              notification.addEventListener("error", (err) => {
+
+                console.error("❌ Notification error:", err);
+
+                addNotification(`Permission granted, but a error occurd: <br />: ${err?.message || err}<br />Cant use native Notifications`, {
+                  ...obj,
+                  type: "danger"
+                });
+
+              });
+
+            } else {
+
+              addNotification("Permission not granted, use in app fallback!", {
+                ...obj,
+                type: "warning"
+              });
+
             }
+
+            console.log("Permission for Notifications", granted);
 
           }).catch((err) => {
             console.error("Could not get notifications premission!", err);
@@ -316,6 +337,29 @@ export default defineComponent({
         }
       }*/
 
+    },
+    async installApp() {
+
+      const prompt = window.deferredPrompt;
+      if (!prompt) return;
+
+      prompt.prompt();
+      const { outcome } = await prompt.userChoice;
+
+      if (outcome === "dismissed") {
+
+        addNotification('<b>OpenHaus not as PWA installed</b><br />You need to click "Install"', {
+          type: "warning",
+          dismiss: false
+        });
+
+      } else {
+
+        window.deferredPrompt = null;
+        this.showInstallButton = false;
+
+      }
+
     }
   },
 });
@@ -323,6 +367,7 @@ export default defineComponent({
 
 <template>
   <div class="container-fluid">
+
     <!-- HEADER -->
     <div class="row py-4" style="border-top: 1px solid #000; border-bottom: 1px solid #000">
       <div class="col">
@@ -331,7 +376,9 @@ export default defineComponent({
       </div>
     </div>
     <!-- HEADER -->
+
     <div class="row justify-content-start">
+
       <!-- ITEM GROUPING -->
       <div class="col-sm-12 col-md-6 col-lg-3 col-xl-2 p-0">
         <div class="card bg-transparent">
@@ -444,6 +491,17 @@ export default defineComponent({
                 Show Dashboard widgets
               </label>
             </div>
+
+            <!--
+            Does currently not work
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="showWidgetTitleBarCheckbox"
+                v-model="settings.showWidgetTitleBar" :disabled="!settings.showWidgetTitleBar" />
+              <label class="form-check-label small" for="showWidgetTitleBarCheckbox">
+                Display Widget Title Bar
+              </label>
+            </div>
+            -->
 
             <hr />
 
@@ -618,6 +676,31 @@ export default defineComponent({
               </option>
             </select>
 
+            <hr v-if="user.isAdmin" />
+
+            <div class="form-check form-switch" v-if="user.isAdmin">
+              <input class="form-check-input" type="checkbox" id="showNotifications"
+                v-model="settings.showNotifications" />
+              <label class="form-check-label small" for="showNotifications">
+                Show System Notifications
+              </label>
+            </div>
+
+            <div class="form-check form-switch" v-if="user.isAdmin">
+              <input class="form-check-input" type="checkbox" id="sendSystemNotifications"
+                v-model="settings.sendSystemNotifications" />
+              <label class="form-check-label small" for="sendSystemNotifications">
+                Send System Notifications
+              </label>
+            </div>
+
+            <hr />
+
+            <button class="btn btn-outline-primary d-block w-100 mb-1" @click="installApp()"
+              :disabled="!showInstallButton">
+              Install as PWA
+            </button>
+
             <!-- CONTENT -->
           </div>
         </div>
@@ -650,7 +733,7 @@ export default defineComponent({
       <!-- SETTINGS -->
 
       <!-- PERMISSIONS -->
-      <div class="col-sm-12 col-md-6 col-lg-3 col-xl-2 p-0 hide">
+      <div class="col-sm-12 col-md-6 col-lg-3 col-xl-2 p-0" v-if="user.isAdmin">
         <div class="card bg-transparent">
           <div class="card-body">
             <h5 class="card-title">Permissions</h5>
@@ -715,6 +798,7 @@ export default defineComponent({
       <!-- INFORMATION -->
 
     </div>
+
   </div>
 </template>
 
