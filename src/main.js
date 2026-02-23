@@ -8,25 +8,34 @@ import { createPinia } from 'pinia';
 const pinia = createPinia();
 
 import { itemStore, settingsStore, commonStore, userStore } from "./store";
+import { addNotification } from "./components/Notifications.vue";
+import { request } from "./helper.js";
+
+import { visibility, statusText } from "./components/Splashscreen.vue";
+
 
 // override console log when not on local machine
 if (!["localhost", "127.0.0.1"].includes(window.location.hostname)) {
     console.log = () => { };
 }
 
-import VueNotificationList from '@dafcoe/vue-notification';
-import GridLayout from 'vue3-drr-grid-layout'
-import 'vue3-drr-grid-layout/dist/style.css'
+if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register('/service-worker.js');
+}
 
+window.deferredPrompt = null;
 
-import { request } from "./helper.js";
+window.addEventListener("beforeinstallprompt", (e) => {
 
-import { useNotificationStore } from "@dafcoe/vue-notification";
-const { setNotification } = useNotificationStore();
+    e.preventDefault();
+    window.deferredPrompt = e;
+
+});
 
 
 // monkey patch ws
 window.events = null;
+window.notifications = null;
 
 // persistent handle
 // (in localStorage)
@@ -75,15 +84,9 @@ pinia.use(({ store }) => {
             }
 
             if (!store.showSettingsButton) {
-                setNotification({
-                    message: "Tap 10x times on any empty space to go to this page again when the settings button is hidden.",
-                    type: "info",
-                    showIcon: false,
-                    dismiss: {
-                        manually: true,
-                        automatically: false,
-                    },
-                    appearance: "dark",
+                addNotification("Tap 10x times on any empty space to go to this page again when the settings button is hidden.", {
+                    type: "primary",
+                    dismiss: 3000
                 });
             }
 
@@ -112,10 +115,9 @@ const app = createApp(App);
 app.config.globalProperties.window = window;
 app.config.globalProperties.console = console;
 
-app.use(VueNotificationList);
+//app.use(VueNotificationList);
 app.use(pinia);
 app.use(router);
-app.use(GridLayout);
 
 window.Vue = Vue;
 window.app = app;
@@ -184,6 +186,10 @@ app.directive("repeat", {
 
 function fetchData() {
     return new Promise((resolve, reject) => {
+
+        // spashscreen status text
+        statusText("Fetch component items");
+
         Promise.all([
             request("/api/rooms"),
             request("/api/endpoints"),
@@ -212,11 +218,14 @@ function fetchData() {
             reject(err);
 
         });
+
     });
 }
 
 function connectToEvents(options = { retry: 0 }) {
     return new Promise((resolve, reject) => {
+
+        statusText("Connect to WebSocket events");
 
         // fix #119, see:
         // https://github.com/OpenHausIO/backend/issues/403
@@ -242,10 +251,14 @@ function connectToEvents(options = { retry: 0 }) {
 
         ws.onclose = () => {
 
+            window.events = null;
+
             console.warn(`WebSocket connection ${ws.url} closed`);
 
             if (settings.showOverlayForConnectionLost) {
-                common.overlay = true;
+                //common.overlay = true;
+                visibility(true);
+                statusText("Connection to WebSocket lost, reconnect");
             }
 
             if (options.retry <= 3) {
@@ -257,18 +270,12 @@ function connectToEvents(options = { retry: 0 }) {
                     } catch (err) {
                         console.error(err);
                     }
-                }, 1000);
+                }, 3000);
             } else {
 
-                setNotification({
-                    message: "<h5>Initial Error:</h5>Could not connect to WebSocket",
-                    type: "alert",
-                    showIcon: false,
-                    dismiss: {
-                        manually: true,
-                        automatically: false,
-                    },
-                    appearance: "dark",
+                addNotification("<h5>Initial Error:</h5>Could not connect to WebSocket", {
+                    type: "danger",
+                    dismiss: false
                 });
 
                 throw new Error("Retry attempts exceede");
@@ -280,8 +287,14 @@ function connectToEvents(options = { retry: 0 }) {
 
         ws.onopen = () => {
             console.warn(`WebSocket connection ${ws.url} open`);
+
+            // otherwise the splashscreen is closed on init request
+            if (options.retry > 0) {
+                visibility(false);
+            }
+
             options.retry = 0;
-            common.overlay = false;
+            //common.overlay = false;
             resolve();
         };
 
@@ -325,6 +338,116 @@ function connectToEvents(options = { retry: 0 }) {
     })
 }
 
+function connectToNotifications(options = { retry: 0 }) {
+    return new Promise((resolve, reject) => {
+
+        // use needs admin rights
+        // notifications is protected by "/system" route
+        if (!user.isAdmin) {
+            return resolve();
+        }
+
+        // prevents race condition setting status text
+        // "notifications" are not so important
+        if (window.events) {
+            statusText("Connect to Notifications");
+        }
+
+        let proto = window.location.protocol === "https:" ? "wss://" : "ws://";
+        let ws = new WebSocket(`${proto}${window.location.host}/api/system/notifications?x-auth-token=${localStorage.getItem("x-auth-token")}`);
+
+        console.log("Try to connect:", ws.url);
+
+        ws.addEventListener("error", (err) => {
+            console.error(err);
+            reject(err);
+        });
+
+        ws.addEventListener("close", () => {
+
+            console.warn(`WebSocket connection ${ws.url} closed`);
+
+            if (options.retry <= 3) {
+                setTimeout(async () => {
+                    try {
+                        console.log("Retry connection to:", ws.url, options)
+                        options.retry += 1;
+                        await connectToNotifications(options);
+                    } catch (err) {
+                        console.error(err);
+                    }
+                }, 3000);
+            } else {
+
+                console.error(`Could not connect to Notifications WebSocket "${ws.url}"`);
+                throw new Error("Retry attempts exceede");
+
+            }
+
+        });
+
+        ws.addEventListener("open", () => {
+            console.warn(`WebSocket connection ${ws.url} open`);
+            options.retry = 0;
+            resolve();
+        });
+
+
+        ws.addEventListener("message", (msg) => {
+            if (settings.showNotifications) {
+                try {
+
+                    let data = JSON.parse(msg.data);
+
+                    let type = "info";
+
+                    switch (data.type) {
+                        case "info": type = "info"; break;
+                        case "warn": type = "warning"; break;
+                        case "error": type = "alert"; break;
+                        default: type = "info"; break;
+                    }
+
+                    let obj = {
+                        message: `${data.title}<br />${data.message}`,
+                        type,
+                        dismiss: false
+                    };
+
+                    if (settings.permissionsNotifications) {
+
+                        let notification = new Notification(`OpenHaus - ${data.title}`, {
+                            body: data.message,
+                            icon: "/favicon.png",
+                            requireInteraction: false,
+                            silent: false
+                        });
+
+                        notification.addEventListener("error", (err) => {
+
+                            console.error("❌ Notification error:", err);
+
+                            addNotification(obj.message, obj);
+
+                        });
+
+                    } else {
+
+                        addNotification(obj.message, obj);
+
+                    }
+
+                } catch (err) {
+                    console.error("Could not handle message", err);
+                }
+            }
+        });
+
+        window.notifications = ws;
+
+    });
+}
+
 
 Promise.all([
 
@@ -334,6 +457,8 @@ Promise.all([
 
             console.log("[pre] DOM Content ready");
 
+            app.mount("#app");
+
             resolve();
 
         });
@@ -341,6 +466,9 @@ Promise.all([
 
 ]).then(() => {
     return new Promise(async (resolve, reject) => {
+
+        // spashscreen status text
+        statusText("Check Authentication");
 
         await user.checkAuth();
 
@@ -356,6 +484,7 @@ Promise.all([
             // fetch stuff & show navbar
             await fetchData();
             await connectToEvents();
+            await connectToNotifications();
 
             common.navbar = true;
 
@@ -375,6 +504,7 @@ Promise.all([
 
                     await fetchData();
                     await connectToEvents();
+                    await connectToNotifications();
 
                     common.navbar = true;
 
@@ -390,6 +520,9 @@ Promise.all([
 
     return Promise.resolve();
 
+    // splashscreen status text
+    statusText("Fetch plugin manifests");
+
     // THIS LODS PLUGINS SCRIPTS DYNMACLIY FROM THE BACKEND
     // DO NOT ENABLE IN PRODUCTION!
     // THIS IS A DRAFT - AND NOT PRODUCTION READY
@@ -397,6 +530,9 @@ Promise.all([
 
         let prmoises = manifests.map(({ url, components }) => {
             return new Promise(async (resolve, reject) => {
+
+                // splashscreen status text
+                statusText(`Load plugin "${url}"`);
 
                 console.log("Load externe JS", url);
 
@@ -451,16 +587,63 @@ Promise.all([
 
 }).then(() => {
 
-    console.log("[pre] mount application");
+    const minDelay = new Promise((resolve) => {
+        setTimeout(resolve, 1000);
+    });
 
-    app.mount("#app");
+    const windowLoaded = new Promise((resolve) => {
+        if (document.readyState === "complete") {
 
+            // splashscreen status text
+            statusText("Render items");
+
+            resolve();
+
+        } else {
+
+            // splashscreen status text
+            statusText("Waiting for remaining network requests");
+
+            const observer = new PerformanceObserver((list) => {
+                list.getEntries().forEach((entry) => {
+
+                    const name = entry.name.split("/").pop().split("?")[0];
+                    statusText(`Waiting for remaining network requests "${name}"`);
+
+                });
+            });
+
+            observer.observe({
+                entryTypes: ["resource"]
+            });
+
+            window.addEventListener("load", () => {
+                observer.disconnect();
+                resolve();
+            }, {
+                once: true
+            });
+
+        }
+    });
+
+    return Promise.all([
+        document.fonts.ready,
+        windowLoaded,
+        minDelay
+    ]);
+
+}).then(() => {
 
     // init navbar visibility
     // not reactive, this happens in settings
     routes.forEach((route) => {
         route.visible = settings[`show${route.name}Button`];
     });
+
+    // hide splashscreen
+    statusText(null);
+    visibility(false);
 
     (() => {
 
