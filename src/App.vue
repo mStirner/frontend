@@ -3,11 +3,13 @@
 //import HelloWorld from "@/components/HelloWorld.vue";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap";
-import "@dafcoe/vue-notification/dist/vue-notification.css";
+
+import Notifications from "@/components/Notifications.vue";
 
 import { routes } from "./router";
 
 import { settingsStore } from "./store.js";
+import Splashscreen from "./components/Splashscreen.vue";
 const settings = settingsStore();
 
 import { commonStore } from "./store.js";
@@ -20,6 +22,10 @@ const common = commonStore();
 
 export default {
   name: "Frontend",
+  components: {
+    Notifications,
+    Splashscreen
+  },
   data() {
     return {
       //overlay: false,
@@ -75,6 +81,7 @@ export default {
 
 
 <template>
+
   <!-- OVERLAY -->
   <div v-if="common.overlay" id="overlay" class="text-center">
     <div id="inner">
@@ -92,9 +99,11 @@ export default {
   <!-- OVERLAY -->
 
   <!-- NOTIFICATIONS -->
-  <div id="notifications">
-    <vue-notification-list position="top-right"></vue-notification-list>
-  </div>
+  <Splashscreen />
+  <!-- NOTIFICATIONS -->
+
+  <!-- NOTIFICATIONS -->
+  <Notifications></Notifications>
   <!-- NOTIFICATIONS -->
 
   <!-- NAVBAR -->
