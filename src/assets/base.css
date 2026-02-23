@@ -51,6 +51,7 @@ body {
     cursor: not-allowed !important;
 }
 
+/*
 .notification-list-item--alert .notification-list-item__tag[data-v-0730d53e] {
     background-color: var(--bs-red) !important;
 }
@@ -62,9 +63,24 @@ body {
 .notification-list-item--success .notification-list-item__tag[data-v-0730d53e] {
     background-color: var(--bs-green) !important;
 }
+    */
 
-hr{
+hr {
     background-color: rgba(0, 0, 0, 1) !important;
     height: 1px !important;
+    opacity: 1;
+}
+
+
+/*
+BELOW STYLING FROM BOOTSTRAP v5.1.3
+*/
+
+.card {
+    color: #efefef;
+}
+
+.form-control::placeholder {
+    color: #6c757d;
     opacity: 1;
 }
