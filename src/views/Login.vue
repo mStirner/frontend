@@ -8,8 +8,7 @@
 import { defineComponent } from "vue";
 //import Widget from "../components/Widget.vue";
 
-import { useNotificationStore } from "@dafcoe/vue-notification";
-const { setNotification } = useNotificationStore();
+import { addNotification } from "../components/Notifications.vue";
 
 import router from "../router/index.js";
 
@@ -31,18 +30,15 @@ export default defineComponent({
       let { email, password } = event.target.elements;
 
       if (!email.value || !password.value) {
+
         // 3s duration
-        setNotification({
-          message: `Please fill in your credentials correctly.<br />Login not possible!`,
-          type: "alert",
-          showIcon: false,
-          dismiss: {
-            manually: true,
-            automatically: true,
-          },
-          appearance: "dark",
+        addNotification("Please fill in your credentials correctly.<br />Login not possible!", {
+          type: "danger",
+          dismiss: 3000
         });
+
         return;
+
       }
 
       let result = await user.login({
@@ -52,15 +48,9 @@ export default defineComponent({
 
       if (result) {
 
-        setNotification({
-          message: `Login successfull!`,
+        addNotification("Login successfull!", {
           type: "success",
-          showIcon: false,
-          dismiss: {
-            manually: true,
-            automatically: true,
-          },
-          appearance: "dark",
+          dismiss: 3000
         });
 
         setTimeout(() => {
@@ -82,15 +72,9 @@ export default defineComponent({
 
       } else {
 
-        setNotification({
-          message: `Login attempt invalid!`,
-          type: "alert",
-          showIcon: false,
-          dismiss: {
-            manually: true,
-            automatically: true,
-          },
-          appearance: "dark",
+        addNotification("Login attempt invalid!", {
+          type: "danger",
+          dismiss: false
         });
 
       }
