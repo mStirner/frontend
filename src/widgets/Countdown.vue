@@ -2,8 +2,7 @@
 import { defineComponent } from "vue";
 import { settingsStore } from "../store";
 
-import { useNotificationStore } from "@dafcoe/vue-notification";
-const { setNotification } = useNotificationStore();
+import { addNotification } from "../components/Notifications.vue";
 
 export default defineComponent({
   name: "Countdown",
@@ -58,15 +57,9 @@ export default defineComponent({
 
       if (!(new RegExp(/^\d+$/).test(this.duration))) {
 
-        setNotification({
-          message: `Invalid duration. Only numbers/integers are supported. No float numbers or other charachter!`,
-          type: "alert",
-          showIcon: false,
-          dismiss: {
-            manually: true,
-            automatically: false,
-          },
-          appearance: "dark",
+        addNotification("Invalid duration. Only numbers/integers are supported. No float numbers or other charachter!", {
+          type: "danger",
+          dismiss: false
         });
 
       }
@@ -99,6 +92,9 @@ export default defineComponent({
       this.closeEdit();
 
       this.interval = setInterval(() => {
+
+        this.counter -= 1;
+
         if (this.counter <= 0) {
 
           this.counter = 0;
@@ -118,15 +114,9 @@ export default defineComponent({
             navigator.vibrate(200);
           }
 
-          setNotification({
-            message: `Countdown ${this.title ? `"${this.title}"` : ''} reached 0!`,
-            type: "info",
-            showIcon: false,
-            dismiss: {
-              manually: true,
-              automatically: false,
-            },
-            appearance: "dark",
+          addNotification(`Countdown ${this.title ? `"${this.title}"` : ''} reached 0!`, {
+            type: "primary",
+            dismiss: 3000
           });
 
           /*
@@ -142,12 +132,8 @@ export default defineComponent({
           }
           */
 
-
-        } else {
-
-          this.counter -= 1;
-
         }
+
       }, 1000);
 
     },

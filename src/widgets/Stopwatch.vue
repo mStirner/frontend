@@ -1,9 +1,6 @@
 <script>
 import { defineComponent } from "vue";
 
-import { useNotificationStore } from "@dafcoe/vue-notification";
-const { setNotification } = useNotificationStore();
-
 export default defineComponent({
   name: "Stopwatch",
   props: {
